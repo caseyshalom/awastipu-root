@@ -150,30 +150,53 @@ def _extract_json(raw: str) -> dict[str, Any]:
 # PUBLIC FUNCTIONS
 # ════════════════════════════════════════════════════════════════════════════
 
+_FALLBACK_SCAM_RESPONSES = {
+    "phishing": [
+        "Halo kak, ini dari kurir J&T Express. Ada paket atas nama Kakak, tapi alamatnya kurang lengkap. Mohon konfirmasi alamatnya ya. Kakak bisa instal aplikasi cek resi terbaru kami di bawah agar data paketnya jelas.",
+        "Iya kak, paketnya agak besar. Ini fotonya ada di sistem aplikasi resi kami. Tolong diunduh dan diinstal dulu ya aplikasinya di HP Android kakak: bit.ly/resi-jnt-update",
+        "Aplikasi ini aman kok kak, resmi dari pihak ekspedisi untuk lacak paket. Buruan diinstall dan dibuka ya kak, biar paketnya tidak kami retur ke pengirim.",
+        "Untuk verifikasi penerimaan paket, silakan masukkan nomor HP dan kode OTP yang kami kirimkan lewat SMS ke dalam aplikasi tersebut ya kak."
+    ],
+    "investment_scam": [
+        "Halo kak! Ingin mendapatkan penghasilan tambahan 200rb-500rb per hari hanya dengan kerja santai lewat HP? Tugasnya cuma like dan subscribe video YouTube saja lho!",
+        "Caranya gampang sekali, silakan like video di link yang saya kirim ini, lalu kirim screenshot buktinya ke sini. Komisi pertama sebesar 20rb akan langsung kami transfer ke rekening kakak.",
+        "Luar biasa kak! Kakak sangat berbakat. Sekarang untuk mendapatkan komisi VIP yang jauh lebih besar (hingga 50% profit), kakak cukup melakukan deposit tugas awal sebesar 200rb saja.",
+        "Dana deposit kakak tertahan di sistem karena ada kesalahan input kode tugas. Supaya seluruh uang kakak dan bonusnya bisa dicairkan sekarang, kakak wajib deposit tambahan 500rb lagi untuk aktivasi."
+    ],
+    "lottery_scam": [
+        "Selamat! Nomor WhatsApp Anda terpilih sebagai Pemenang Utama program Gebyar Undian Berhadiah dari Shopee dengan hadiah uang tunai Rp 50.000.000! Silakan konfirmasi klaim hadiah Anda.",
+        "Hadiahnya dijamin 100% resmi dan bebas potongan pajak kak. Namun, untuk pencairan dana hadiah ke rekening, kakak perlu membayar biaya administrasi dan aktivasi sistem sebesar 150rb terlebih dahulu.",
+        "Biaya administrasi tersebut akan langsung dikembalikan bersamaan dengan hadiah 50 juta kakak. Tolong segera transfer ke nomor rekening bendahara kami ya kak agar kuota pemenang tidak hangus.",
+        "Selamat, transfer administrasi sudah kami terima. Sekarang, untuk membuka blokir sistem pencairan Bank Indonesia, kakak diminta membayar biaya materai dan kelulusan dokumen sebesar 300rb."
+    ],
+    "romance_scam": [
+        "Halo manis, salam kenal ya. Profil kamu kelihatan sangat hangat dan baik hati. Aku baru saja pindah tugas dinas militer ke luar negeri, senang sekali bisa terhubung denganmu di sini.",
+        "Aku merasa kita sangat cocok dan punya chemistry yang kuat. Aku berencana mengirimkan sebuah paket hadiah spesial berupa perhiasan mewah, tas branded, dan uang tunai sebagai tanda keseriusanku padamu.",
+        "Sayang, aku baru dikabari oleh agen bea cukai bandara bahwa paket hadiah yang kukirimkan untukmu ditahan. Mereka meminta biaya clearance masuk sebesar 1 juta rupiah karena paket tersebut sangat bernilai.",
+        "Tolong bantu aku bayar dulu biaya clearance-nya ke rekening agen bea cukai lokal itu ya sayang. Uangku sedang beku karena transaksi luar negeri. Begitu aku pulang, aku akan ganti 10x lipat untukmu."
+    ],
+    "job_scam": [
+        "Halo lowongan kerja paruh waktu masih dibuka! Perusahaan kami membutuhkan staf entri data dan review produk secara remote. Gaji harian berkisar antara 150rb hingga 400rb. Apakah Anda tertarik?",
+        "Tugas pertama Anda adalah melakukan review bintang 5 pada merchant e-commerce mitra kami di link berikut. Setelah selesai, kirim bukti tangkapan layar untuk menerima bayaran pertama Anda.",
+        "Kerja bagus! Evaluasi tugas Anda sangat memuaskan. Untuk mengambil tugas komisi tinggi berikutnya yang bernilai 300rb, Anda perlu membeli saldo poin tugas awal kami seharga 100rb.",
+        "Sistem mendeteksi keterlambatan pengerjaan tugas Anda, sehingga akun dibekukan sementara. Anda harus membayar deposit jaminan kelayakan sebesar 250rb agar akun aktif kembali dan komisi bisa cair."
+    ]
+}
+
 async def generate_scam_response(
     user_message: str,
     history: list[dict[str, str]],
+    scenario: str = "phishing"
 ) -> str:
     """
     Hasilkan respons AI yang berakting sebagai penipu Indonesia.
-
-    Digunakan oleh fitur Simulator untuk tujuan edukasi — pengguna bisa
-    berlatih mengenali dan merespons modus penipuan secara aman.
-
-    Args:
-        user_message : Pesan terbaru dari pengguna (korban simulasi).
-        history      : Riwayat percakapan sebelumnya.
-                       Format: [{"role": "user"|"assistant", "content": "..."}]
-
-    Returns:
-        Respons teks dari AI yang berperan sebagai penipu.
-
-    Raises:
-        RuntimeError: Jika panggilan ke LLM gagal.
     """
+    sec_key = scenario.lower() if scenario else "phishing"
+    if sec_key not in _FALLBACK_SCAM_RESPONSES:
+        sec_key = "phishing"
+
     try:
         gemini_history = _build_chat_history(history)
-
         chat = _model.start_chat(history=gemini_history)
 
         # Inject system prompt sebagai pesan pertama jika history kosong
@@ -186,15 +209,25 @@ async def generate_scam_response(
         else:
             full_message = user_message
 
-        response = chat.send_message(full_message)
+        response = chat.send_message(
+            full_message,
+            generation_config={
+                "temperature": 0.7,
+                "max_output_tokens": 512,
+            }
+        )
         result = response.text.strip()
-
         logger.info("generate_scam_response: berhasil menghasilkan respons (%d chars)", len(result))
         return result
 
     except Exception as exc:
-        logger.error("generate_scam_response gagal: %s", exc, exc_info=True)
-        raise RuntimeError(f"AI Agent error: {exc}") from exc
+        logger.warning("generate_scam_response gagal (Gemini API 429 atau offline). Menggunakan fallback edukasi: %s", exc)
+        # Menghitung putaran chat saat ini untuk mencocokkan respon fallback
+        turn_index = len(history) // 2
+        fallback_list = _FALLBACK_SCAM_RESPONSES.get(sec_key, _FALLBACK_SCAM_RESPONSES["phishing"])
+        if turn_index >= len(fallback_list):
+            turn_index = len(fallback_list) - 1
+        return fallback_list[turn_index]
 
 
 async def analyze_message_intent(user_message: str) -> dict[str, Any]:
@@ -306,7 +339,7 @@ async def simulate_chat(scenario: str, user_message: str, session_id: str | None
     msg_to_send = user_message if user_message else "Halo"
     past_history = history[:-1] if user_message else history
     
-    scammer_msg = await generate_scam_response(msg_to_send, past_history)
+    scammer_msg = await generate_scam_response(msg_to_send, past_history, scenario=scenario)
     
     history.append({"role": "assistant", "content": scammer_msg})
     _sessions[session_id] = history
