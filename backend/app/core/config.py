@@ -3,6 +3,8 @@ Konfigurasi aplikasi menggunakan Pydantic BaseSettings.
 Semua nilai dibaca dari environment variables / file .env.
 """
 
+from typing import Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── App ──────────────────────────────────────────────────────────────
@@ -31,7 +34,24 @@ class Settings(BaseSettings):
     AI_TEMPERATURE: float = 0.7
 
     # ── Database ─────────────────────────────────────────────────────────
-    DATABASE_URL: str = "sqlite+aiosqlite:///./awastipu.db"
+    DATABASE_URL: str = ""
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_url(cls, v: Any) -> str:
+        if not v:
+            import os
+            v = os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL")
+        
+        if not v or not isinstance(v, str):
+            return "sqlite+aiosqlite:///./awastipu.db"
+            
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+        return v
 
     # ── Security ─────────────────────────────────────────────────────────
     SECRET_KEY: str = "change-this-in-production-use-openssl-rand-hex-32"
