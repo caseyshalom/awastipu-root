@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # ── Gemini client init ───────────────────────────────────────────────────────
 genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+_model = genai.GenerativeModel(model_name=settings.GEMINI_MODEL)
 
 
 # ════════════════════════════════════════════════════════════════════════════

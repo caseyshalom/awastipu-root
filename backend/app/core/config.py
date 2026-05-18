@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     # ── AI Provider ──────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""          # opsional, fallback
-    AI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    AI_MODEL: str = "gemini-2.0-flash"
     AI_MAX_TOKENS: int = 1024
     AI_TEMPERATURE: float = 0.7
 
