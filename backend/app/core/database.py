@@ -7,7 +7,15 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
-engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+# Supabase PgBouncer (Transaction Mode) support: Disable prepared statement cache for PostgreSQL
+if settings.DATABASE_URL.startswith("postgresql"):
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        connect_args={"prepared_statement_cache_size": 0}
+    )
+else:
+    engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
