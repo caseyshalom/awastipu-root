@@ -12,7 +12,7 @@ if settings.DATABASE_URL.startswith("postgresql"):
     engine = create_async_engine(
         settings.DATABASE_URL,
         echo=settings.DEBUG,
-        connect_args={"prepared_statement_cache_size": 0}
+        connect_args={"statement_cache_size": 0}
     )
 else:
     engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
