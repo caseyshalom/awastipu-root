@@ -21,12 +21,9 @@ async def analyze_text_endpoint(request: Request, body: AnalyzeRequest):
     Mengembalikan skor risiko, kategori, dan penjelasan detail.
     """
     rate_limiter.check(request)
-    cleaned_text = sanitize_text(body.message)
+    msg = body.text or body.message or ""
+    cleaned_text = sanitize_text(msg)
     result = await analyze_message_intent(cleaned_text)
-    # response expects AnalyzeResponse, which has scam_probability, manipulation_techniques, risk_level, educational_tip, analyzed_message.
-    # result has scam_probability, manipulation_techniques, risk_level, educational_tip.
-    # We need to add analyzed_message to it.
-    result["analyzed_message"] = cleaned_text
     return result
 
 

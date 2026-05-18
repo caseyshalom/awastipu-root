@@ -26,7 +26,14 @@ export default function useAnalyzer(): UseAnalyzerReturn {
       const data = await analyzeText(text);
       setResult(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Gagal menganalisis teks. Coba lagi.');
+      const rawDetail = err.response?.data?.detail;
+      if (typeof rawDetail === 'string') {
+        setError(rawDetail);
+      } else if (Array.isArray(rawDetail)) {
+        setError(rawDetail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', '));
+      } else {
+        setError('Gagal menganalisis teks. Coba lagi.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -39,7 +46,14 @@ export default function useAnalyzer(): UseAnalyzerReturn {
       const data = await analyzeImage(file);
       setResult(data.analysis);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Gagal menganalisis gambar. Coba lagi.');
+      const rawDetail = err.response?.data?.detail;
+      if (typeof rawDetail === 'string') {
+        setError(rawDetail);
+      } else if (Array.isArray(rawDetail)) {
+        setError(rawDetail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', '));
+      } else {
+        setError('Gagal menganalisis gambar. Coba lagi.');
+      }
     } finally {
       setIsLoading(false);
     }

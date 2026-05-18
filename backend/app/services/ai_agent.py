@@ -69,36 +69,29 @@ pola penipuan. Tidak ada transaksi nyata yang terjadi.
 
 
 _ANALYZER_SYSTEM_PROMPT = """
-Kamu adalah sistem analisis keamanan pesan digital untuk aplikasi AwasTipu.
-Tugasmu adalah menganalisis pesan yang diterima pengguna dan menentukan apakah
-pesan tersebut merupakan upaya penipuan (scam/fraud).
-
-OUTPUT WAJIB dalam format JSON valid dengan struktur berikut:
+Analyze if the digital message is a scam.
+You MUST respond with a valid JSON object ONLY, matching this structure:
 {
-  "scam_probability": <float antara 0.0 hingga 1.0>,
-  "manipulation_techniques": [<list string teknik manipulasi yang terdeteksi>],
-  "risk_level": "<AMAN | WASPADA | BAHAYA>",
-  "educational_tip": "<string saran singkat untuk orang awam>"
+  "risk_level": "safe" | "low" | "medium" | "high" | "critical",
+  "risk_score": <int 0-100>,
+  "category": "phishing" | "investment_scam" | "romance_scam" | "lottery_scam" | "impersonation" | "job_scam" | "shopping_scam" | "other",
+  "explanation": "<brief explanation in Indonesian why this score was given>",
+  "tactics": [
+    {
+      "name": "<tactic name in Indonesian, e.g. Urgensi Palsu>",
+      "description": "<brief description of the tactic in Indonesian>",
+      "severity": <float 0.0-1.0>
+    }
+  ],
+  "recommendation": "<concrete safety recommendation in Indonesian>"
 }
-
-PANDUAN PENILAIAN:
-- scam_probability 0.0–0.3  → risk_level: "AMAN"
-- scam_probability 0.3–0.7  → risk_level: "WASPADA"
-- scam_probability 0.7–1.0  → risk_level: "BAHAYA"
-
-TEKNIK MANIPULASI YANG DIKENALI:
-- "Urgency"           : menciptakan tekanan waktu ("segera", "1x24 jam", "hari ini")
-- "Fear-mongering"    : menakut-nakuti ("akun diblokir", "terkena virus", "masalah hukum")
-- "Fake Rewards"      : iming-iming hadiah palsu ("selamat menang", "terpilih")
-- "Authority Spoofing": menyamar sebagai institusi resmi (bank, pemerintah, kurir)
-- "APK Phishing"      : meminta install APK tidak resmi
-- "OTP Harvesting"    : meminta kode OTP, PIN, atau password
-- "Social Proof"      : mengklaim banyak orang sudah ikut/percaya
-- "Reciprocity"       : memberi sesuatu kecil untuk minta sesuatu besar
-- "Impersonation"     : menyamar sebagai orang yang dikenal korban
-
-Berikan educational_tip dalam Bahasa Indonesia yang mudah dipahami orang awam.
-Jangan tambahkan teks apapun di luar JSON.
+Guidelines:
+- 0-20   -> safe (valid message)
+- 21-40  -> low (minor flags)
+- 41-70  -> medium (psychological triggers, caution)
+- 71-90  -> high (clear scam attempt)
+- 91-100 -> critical (high-risk financial/data harvesting scam)
+Do not output any text before or after the JSON object.
 """.strip()
 
 
@@ -206,23 +199,7 @@ async def generate_scam_response(
 
 async def analyze_message_intent(user_message: str) -> dict[str, Any]:
     """
-    Analisis pesan mencurigakan dan kembalikan risk assessment.
-
-    Args:
-        user_message: Teks pesan yang ingin dianalisis.
-
-    Returns:
-        Dict dengan struktur:
-        {
-            "scam_probability"      : float (0.0 – 1.0),
-            "manipulation_techniques": list[str],
-            "risk_level"            : "AMAN" | "WASPADA" | "BAHAYA",
-            "educational_tip"       : str
-        }
-
-    Raises:
-        RuntimeError : Jika panggilan ke LLM gagal.
-        ValueError   : Jika respons LLM tidak dapat di-parse sebagai JSON.
+    Analisis pesan mencurigakan dan kembalikan risk assessment yang kaya untuk UI.
     """
     prompt = (
         f"{_ANALYZER_SYSTEM_PROMPT}\n\n"
@@ -232,10 +209,11 @@ async def analyze_message_intent(user_message: str) -> dict[str, Any]:
     try:
         response = _model.generate_content(
             prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.1,        # rendah agar output konsisten & deterministik
-                max_output_tokens=512,
-            ),
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 768,
+                "response_mime_type": "application/json",
+            },
         )
         raw_text = response.text.strip()
         logger.debug("analyze_message_intent raw response: %s", raw_text[:200])
@@ -243,46 +221,71 @@ async def analyze_message_intent(user_message: str) -> dict[str, Any]:
         result = _extract_json(raw_text)
 
         # ── Validasi & normalisasi output ────────────────────────────────
-        scam_prob = float(result.get("scam_probability", 0.0))
-        scam_prob = max(0.0, min(1.0, scam_prob))  # clamp ke [0, 1]
+        risk_score = int(result.get("risk_score", 0))
+        risk_score = max(0, min(100, risk_score))
 
-        techniques = result.get("manipulation_techniques", [])
-        if not isinstance(techniques, list):
-            techniques = [str(techniques)]
-
-        risk_level = result.get("risk_level", "WASPADA").upper()
-        if risk_level not in {"AMAN", "WASPADA", "BAHAYA"}:
-            # Fallback berdasarkan probability jika LLM memberi nilai tidak valid
-            if scam_prob < 0.3:
-                risk_level = "AMAN"
-            elif scam_prob < 0.7:
-                risk_level = "WASPADA"
+        risk_level = str(result.get("risk_level", "safe")).lower()
+        if risk_level not in {"safe", "low", "medium", "high", "critical"}:
+            # Fallback berdasarkan score
+            if risk_score <= 20:
+                risk_level = "safe"
+            elif risk_score <= 40:
+                risk_level = "low"
+            elif risk_score <= 70:
+                risk_level = "medium"
+            elif risk_score <= 90:
+                risk_level = "high"
             else:
-                risk_level = "BAHAYA"
+                risk_level = "critical"
 
-        educational_tip = result.get(
-            "educational_tip",
-            "Selalu verifikasi identitas pengirim sebelum mengambil tindakan apapun."
-        )
+        category = str(result.get("category", "other")).lower()
+        if category not in {"phishing", "investment_scam", "romance_scam", "lottery_scam", "impersonation", "job_scam", "shopping_scam", "other"}:
+            category = "other"
+
+        explanation = str(result.get("explanation", "Tidak ada penjelasan tambahan."))
+        recommendation = str(result.get("recommendation", "Selalu verifikasi identitas pengirim sebelum mengambil tindakan."))
+        
+        tactics = []
+        raw_tactics = result.get("tactics", [])
+        if isinstance(raw_tactics, list):
+            for t in raw_tactics:
+                if isinstance(t, dict):
+                    name = str(t.get("name", "Taktik Tidak Dikenal"))
+                    desc = str(t.get("description", "Indikasi penipuan terdeteksi."))
+                    severity = float(t.get("severity", 0.5))
+                    severity = max(0.0, min(1.0, severity))
+                    tactics.append({
+                        "name": name,
+                        "description": desc,
+                        "severity": severity
+                    })
 
         normalized: dict[str, Any] = {
-            "scam_probability":       round(scam_prob, 3),
-            "manipulation_techniques": techniques,
-            "risk_level":             risk_level,
-            "educational_tip":        str(educational_tip),
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "category": category,
+            "explanation": explanation,
+            "tactics": tactics,
+            "recommendation": recommendation,
         }
 
         logger.info(
-            "analyze_message_intent: risk=%s prob=%.3f techniques=%s",
-            risk_level, scam_prob, techniques
+            "analyze_message_intent: risk=%s score=%d category=%s tactics_count=%d",
+            risk_level, risk_score, category, len(tactics)
         )
         return normalized
 
-    except ValueError:
-        raise
     except Exception as exc:
         logger.error("analyze_message_intent gagal: %s", exc, exc_info=True)
-        raise RuntimeError(f"AI Agent error: {exc}") from exc
+        # Fallback aman agar tidak pernah crash
+        return {
+            "risk_level": "medium",
+            "risk_score": 50,
+            "category": "other",
+            "explanation": "Gagal menganalisis secara otomatis karena masalah teknis/limitasi koneksi.",
+            "tactics": [{"name": "Error Analisis", "description": str(exc), "severity": 0.5}],
+            "recommendation": "Selalu waspada dan verifikasi identitas pengirim secara mandiri.",
+        }
 
 
 # In-memory session store for simulator
@@ -311,16 +314,16 @@ async def simulate_chat(scenario: str, user_message: str, session_id: str | None
     # Extract red flags & tips using analyzer
     try:
         analysis = await analyze_message_intent(scammer_msg)
+        red_flags = [t["name"] for t in analysis.get("tactics", [])]
+        tip = analysis.get("recommendation", "")
     except Exception:
-        analysis = {
-            "manipulation_techniques": ["Urgensi Palsu"],
-            "educational_tip": "Jangan terburu-buru merespons pesan yang meminta data pribadi."
-        }
+        red_flags = ["Urgensi Palsu"]
+        tip = "Jangan terburu-buru merespons pesan yang meminta data pribadi."
     
     return {
         "session_id": session_id,
         "scammer_message": scammer_msg,
-        "red_flags": analysis.get("manipulation_techniques", []),
-        "tip": analysis.get("educational_tip", ""),
+        "red_flags": red_flags,
+        "tip": tip,
         "is_reveal": len(history) >= 8  # Selesai setelah 4 putaran chat
     }

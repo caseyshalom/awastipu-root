@@ -43,21 +43,22 @@ class ScamCategory(str, Enum):
 # ════════════════════════════════════════════════════════════════════════════
 
 class AnalyzeRequest(BaseModel):
-    message: str = Field(
-        ...,
-        min_length=5,
-        max_length=5000,
-        description="Teks pesan mencurigakan yang ingin dianalisis",
-        examples=["Selamat! Nomor Anda terpilih sebagai pemenang hadiah Rp 50 juta."],
-    )
+    message: str | None = Field(default=None, description="Teks pesan mencurigakan (alternative)")
+    text: str | None = Field(default=None, description="Teks pesan mencurigakan (standard)")
 
+
+class AnalyzeTactic(BaseModel):
+    name: str
+    description: str
+    severity: float
 
 class AnalyzeResponse(BaseModel):
-    scam_probability:        float      = Field(..., ge=0.0, le=1.0)
-    manipulation_techniques: list[str]  = Field(default_factory=list)
-    risk_level:              RiskLevel
-    educational_tip:         str
-    analyzed_message:        str        = Field(..., description="Pesan asli yang dianalisis")
+    risk_level:              str
+    risk_score:              int
+    category:                str
+    explanation:             str
+    tactics:                 list[AnalyzeTactic] = []
+    recommendation:          str
 
 
 # ════════════════════════════════════════════════════════════════════════════
