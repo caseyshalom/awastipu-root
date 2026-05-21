@@ -115,25 +115,27 @@ def _extract_json(raw: str) -> dict[str, Any]:
     Ekstrak JSON dari respons LLM yang mungkin mengandung teks tambahan.
     Mencoba beberapa strategi parsing secara berurutan.
     """
-    # Strategi 1: parse langsung
+    raw_clean = raw.strip()
+    if raw_clean.startswith("```json"):
+        raw_clean = raw_clean[7:]
+    elif raw_clean.startswith("```"):
+        raw_clean = raw_clean[3:]
+    if raw_clean.endswith("```"):
+        raw_clean = raw_clean[:-3]
+    raw_clean = raw_clean.strip()
+
+    # Strategi 1: parse langsung setelah dibersihkan
     try:
-        return json.loads(raw.strip())
+        return json.loads(raw_clean)
     except json.JSONDecodeError:
         pass
 
-    # Strategi 2: cari blok ```json ... ```
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
-    if match:
+    # Strategi 2: cari objek JSON pertama dalam teks
+    start = raw.find('{')
+    end = raw.rfind('}')
+    if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Strategi 3: cari objek JSON pertama dalam teks
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
+            return json.loads(raw[start:end+1])
         except json.JSONDecodeError:
             pass
 
@@ -232,7 +234,7 @@ async def analyze_message_intent(user_message: str) -> dict[str, Any]:
             prompt,
             generation_config={
                 "temperature": 0.1,
-                "max_output_tokens": 768,
+                "max_output_tokens": 2048,
             },
         )
         raw_text = response.text.strip()
