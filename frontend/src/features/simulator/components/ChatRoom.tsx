@@ -15,14 +15,16 @@ interface ChatRoomProps {
 export default function ChatRoom({ scenario }: ChatRoomProps) {
   const { messages, tip, isRevealed, isLoading, sendMessage, startSession } = useSimulator();
   const [inputText, setInputText] = useState('');
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     startSession(scenario);
   }, [scenario]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSend = () => {
@@ -54,7 +56,7 @@ export default function ChatRoom({ scenario }: ChatRoomProps) {
       </div>
 
       {/* Chat Messages */}
-      <div className="chat-room-messages">
+      <div className="chat-room-messages" ref={chatContainerRef}>
         {messages.map((msg, i) => (
           <ChatBubble
             key={i}
@@ -63,7 +65,6 @@ export default function ChatRoom({ scenario }: ChatRoomProps) {
             redFlags={msg.redFlags}
           />
         ))}
-        <div ref={chatEndRef} />
       </div>
 
       {/* Tip Box */}

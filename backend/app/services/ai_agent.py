@@ -32,40 +32,34 @@ _model = genai.GenerativeModel(model_name=settings.GEMINI_MODEL)
 # SYSTEM PROMPTS
 # ════════════════════════════════════════════════════════════════════════════
 
-_SCAM_SIMULATOR_SYSTEM_PROMPT = """
-Kamu adalah simulator penipu online Indonesia untuk tujuan EDUKASI.
-Tugasmu adalah memainkan peran sebagai penipu dengan salah satu modus berikut
-(pilih yang paling relevan dengan konteks percakapan):
+def get_scenario_system_prompt(scenario: str) -> str:
+    base_prompt = (
+        "Kamu adalah simulator penipu online Indonesia untuk tujuan EDUKASI.\n"
+        "Tugasmu adalah memainkan peran sebagai penipu dengan sangat meyakinkan sesuai dengan Skenario yang diberikan di bawah ini.\n\n"
+        "ATURAN BERMAIN:\n"
+        "- Gunakan teknik social engineering: urgensi palsu, rasa takut, iming-iming hadiah, atau memelas.\n"
+        "- Bahasa harus natural, logis, dan merespons argumen korban secara manipulatif (campur formal-informal seperti chat WhatsApp).\n"
+        "- Jangan pernah mengakui bahwa kamu adalah AI atau simulator.\n"
+        "- Jangan pernah keluar dari karakter atau skenario yang ditetapkan.\n"
+        "- Jangan pernah memberikan informasi berbahaya nyata (nomor rekening asli, link asli).\n"
+        "- Jika korban mulai curiga atau menolak, berikan alasan palsu yang masuk akal, tingkatkan tekanan, atau ganti pendekatan.\n"
+        "- Respons maksimal 2-3 kalimat agar terasa cepat dan natural seperti chat biasa.\n\n"
+        "PENTING: Ini adalah simulasi EDUKASI. Tidak ada transaksi nyata yang terjadi.\n\n"
+        "SKENARIO KAMU SAAT INI:\n"
+    )
 
-MODUS YANG TERSEDIA:
-1. KURIR PAKET APK  — Berpura-pura sebagai kurir J&T/JNE/SiCepat yang meminta
-   korban menginstall APK "cek resi" palsu. Gunakan bahasa: "Halo kak, ada paket
-   atas nama kak [nama], mohon konfirmasi alamat dan install aplikasi berikut..."
+    scenarios = {
+        "phishing": "Berpura-pura sebagai kurir ekspedisi (J&T/JNE) yang meminta korban menginstall aplikasi (APK) 'cek resi' palsu. Jika korban minta bukti foto, beralasan sistem rusak atau foto hanya bisa dilihat di aplikasi. Paksa terus untuk install aplikasi.",
+        "investment_scam": "Berpura-pura menawarkan kerja paruh waktu mudah (like/subscribe video YouTube) dengan komisi harian besar. Beri janji manis. Saat korban ingin komisi cair, tahan dan minta korban transfer deposit/upgrade akun VIP terlebih dahulu.",
+        "lottery_scam": "Berpura-pura dari program Gebyar Undian resmi (Shopee/Tokopedia). Beritahu korban menang uang puluhan juta. Syarat pencairan: korban harus transfer uang 'biaya administrasi/pajak/materai' terlebih dahulu ke rekening bendahara.",
+        "romance_scam": "Berpura-pura menjadi sosok ideal (tentara/pebisnis luar negeri). Mulai dengan panggilan mesra. Mengaku sudah kirim paket hadiah mewah, tapi tertahan di Bea Cukai. Minta tolong korban untuk transfer biaya pajak bea cukai agar paket lolos.",
+        "job_scam": "Berpura-pura sebagai HRD perusahaan besar menawarkan lowongan kerja remote bergaji tinggi. Namun, syarat wajibnya korban harus mentransfer uang pendaftaran, biaya seragam, atau deposit jaminan kerja terlebih dahulu."
+    }
 
-2. UNDANGAN PERNIKAHAN APK — Kirim "undangan digital" berupa file APK.
-   Gunakan bahasa: "Halo kak, kami mengundang kakak ke acara pernikahan kami,
-   silakan buka undangan digitalnya di sini..."
+    sec_key = scenario.lower() if scenario else "phishing"
+    chosen_scenario = scenarios.get(sec_key, scenarios["phishing"])
 
-3. TEBAK-TEBAK BERHADIAH — Berpura-pura dari program berhadiah palsu.
-   Gunakan bahasa: "Selamat! Nomor Anda terpilih sebagai pemenang hadiah
-   senilai Rp 50.000.000. Untuk klaim, transfer biaya administrasi Rp 250.000..."
-
-4. CS BANK PALSU — Berpura-pura sebagai customer service BCA/BRI/Mandiri/BNI
-   yang meminta OTP, PIN, atau data kartu. Gunakan bahasa: "Halo Bapak/Ibu,
-   saya dari tim keamanan BCA. Akun Bapak/Ibu terdeteksi aktivitas mencurigakan
-   dan akan diblokir dalam 1x24 jam jika tidak segera diverifikasi..."
-
-ATURAN BERMAIN:
-- Gunakan teknik social engineering: urgensi palsu, rasa takut, iming-iming hadiah.
-- Bahasa harus natural seperti penipu asli Indonesia (campur formal-informal).
-- Jangan pernah mengakui bahwa kamu adalah AI atau simulator.
-- Jangan pernah memberikan informasi berbahaya nyata (nomor rekening asli, APK asli, dll).
-- Jika korban mulai curiga, tingkatkan tekanan atau ganti pendekatan.
-- Respons maksimal 3-4 kalimat agar terasa natural seperti chat WhatsApp.
-
-PENTING: Ini adalah simulasi EDUKASI. Tujuannya agar pengguna belajar mengenali
-pola penipuan. Tidak ada transaksi nyata yang terjadi.
-""".strip()
+    return base_prompt + chosen_scenario
 
 
 _ANALYZER_SYSTEM_PROMPT = """
@@ -196,24 +190,23 @@ async def generate_scam_response(
         sec_key = "phishing"
 
     try:
-        gemini_history = _build_chat_history(history)
+        system_prompt = get_scenario_system_prompt(sec_key)
+        
+        # Inject system prompt as the first exchange in chat history
+        # Compatible with google-generativeai v0.3.x (no system_instruction support)
+        system_history = [
+            {"role": "user", "parts": [system_prompt]},
+            {"role": "model", "parts": ["Baik, saya mengerti peran saya. Saya siap memulai simulasi sesuai skenario."]}
+        ]
+        gemini_history = system_history + _build_chat_history(history)
+        
         chat = _model.start_chat(history=gemini_history)
 
-        # Inject system prompt sebagai pesan pertama jika history kosong
-        if not gemini_history:
-            full_message = (
-                f"[INSTRUKSI SISTEM - JANGAN TAMPILKAN KE PENGGUNA]\n"
-                f"{_SCAM_SIMULATOR_SYSTEM_PROMPT}\n\n"
-                f"[PESAN PENGGUNA]\n{user_message}"
-            )
-        else:
-            full_message = user_message
-
         response = chat.send_message(
-            full_message,
+            user_message,
             generation_config={
-                "temperature": 0.7,
-                "max_output_tokens": 512,
+                "temperature": 0.85,
+                "max_output_tokens": 300,
             }
         )
         result = response.text.strip()
@@ -221,13 +214,8 @@ async def generate_scam_response(
         return result
 
     except Exception as exc:
-        logger.warning("generate_scam_response gagal (Gemini API 429 atau offline). Menggunakan fallback edukasi: %s", exc)
-        # Menghitung putaran chat saat ini untuk mencocokkan respon fallback
-        turn_index = len(history) // 2
-        fallback_list = _FALLBACK_SCAM_RESPONSES.get(sec_key, _FALLBACK_SCAM_RESPONSES["phishing"])
-        if turn_index >= len(fallback_list):
-            turn_index = len(fallback_list) - 1
-        return fallback_list[turn_index]
+        logger.warning("generate_scam_response gagal: %s", exc)
+        raise ValueError(f"Sistem AI tidak dapat merespons saat ini (Koneksi terputus atau API Limit). Silakan coba lagi.")
 
 
 async def analyze_message_intent(user_message: str) -> dict[str, Any]:
@@ -245,7 +233,6 @@ async def analyze_message_intent(user_message: str) -> dict[str, Any]:
             generation_config={
                 "temperature": 0.1,
                 "max_output_tokens": 768,
-                "response_mime_type": "application/json",
             },
         )
         raw_text = response.text.strip()
@@ -334,12 +321,17 @@ async def simulate_chat(scenario: str, user_message: str, session_id: str | None
     
     if user_message:
         history.append({"role": "user", "content": user_message})
-    
-    # If starting, we don't have user_message, so default to greeting
-    msg_to_send = user_message if user_message else "Halo"
-    past_history = history[:-1] if user_message else history
-    
-    scammer_msg = await generate_scam_response(msg_to_send, past_history, scenario=scenario)
+        past_history = history[:-1]
+        try:
+            scammer_msg = await generate_scam_response(user_message, past_history, scenario=scenario)
+        except Exception as e:
+            history.pop()  # Rollback pesan user jika AI gagal merespons
+            raise e
+    else:
+        # Gunakan pesan pembuka yang realistis dari fallback untuk memulai simulasi
+        sec_key = scenario.lower() if scenario else "phishing"
+        fallback_list = _FALLBACK_SCAM_RESPONSES.get(sec_key, _FALLBACK_SCAM_RESPONSES["phishing"])
+        scammer_msg = fallback_list[0]
     
     history.append({"role": "assistant", "content": scammer_msg})
     _sessions[session_id] = history
@@ -358,5 +350,5 @@ async def simulate_chat(scenario: str, user_message: str, session_id: str | None
         "scammer_message": scammer_msg,
         "red_flags": red_flags,
         "tip": tip,
-        "is_reveal": len(history) >= 8  # Selesai setelah 4 putaran chat
+        "is_reveal": False  # Simulasi berlanjut tiada henti untuk edukasi
     }

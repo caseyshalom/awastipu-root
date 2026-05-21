@@ -28,12 +28,14 @@ export default function useSimulator(): UseSimulatorReturn {
   const [isRevealed, setIsRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [currentScenario, setCurrentScenario] = useState<string>('phishing');
 
   const startSession = useCallback(async (scenario: string) => {
     setIsLoading(true);
     setMessages([]);
     setIsRevealed(false);
     setTip('');
+    setCurrentScenario(scenario);
 
     try {
       const { data } = await axios.post('/api/v1/simulate/start', { scenario });
@@ -61,7 +63,7 @@ export default function useSimulator(): UseSimulatorReturn {
       const { data } = await axios.post('/api/v1/simulate/message', {
         session_id: sessionId,
         user_message: text,
-        scenario: 'phishing',
+        scenario: currentScenario,
       });
 
       setMessages((prev) => [

@@ -24,7 +24,7 @@ export default function SimulatorPage() {
     }).catch(() => {
       // Fallback scenarios
       setScenarios([
-        { id: 'phishing', name: 'Phishing (Bank Palsu)', icon: '🏦' },
+        { id: 'phishing', name: 'Phishing', icon: '🏦' },
         { id: 'investment_scam', name: 'Investasi Bodong', icon: '📈' },
         { id: 'lottery_scam', name: 'Undian Berhadiah Palsu', icon: '🎰' },
         { id: 'romance_scam', name: 'Romance Scam', icon: '💔' },

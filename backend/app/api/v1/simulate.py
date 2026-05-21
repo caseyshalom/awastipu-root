@@ -60,7 +60,7 @@ async def list_scenarios():
     """Daftar skenario simulasi yang tersedia."""
     return {
         "scenarios": [
-            {"id": ScamCategory.PHISHING, "name": "Phishing (Bank Palsu)", "icon": "🏦"},
+            {"id": ScamCategory.PHISHING, "name": "Phishing", "icon": "🏦"},
             {"id": ScamCategory.INVESTMENT, "name": "Investasi Bodong", "icon": "📈"},
             {"id": ScamCategory.LOTTERY, "name": "Undian Berhadiah Palsu", "icon": "🎰"},
             {"id": ScamCategory.ROMANCE, "name": "Romance Scam", "icon": "💔"},
