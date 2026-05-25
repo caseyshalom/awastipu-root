@@ -33,8 +33,8 @@ export default function Footer() {
               <Link to="/simulator" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onMouseOver={(e) => { e.currentTarget.style.color = '#60a5fa'; e.currentTarget.style.transform = 'translateX(5px)'; }} onMouseOut={(e) => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.transform = 'translateX(0)'; }}>
                 <span>🎮</span> Simulator Scam
               </Link>
-              <Link to="/report" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onMouseOver={(e) => { e.currentTarget.style.color = '#60a5fa'; e.currentTarget.style.transform = 'translateX(5px)'; }} onMouseOut={(e) => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.transform = 'translateX(0)'; }}>
-                <span>📋</span> Database Laporan
+              <Link to="/emergency" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onMouseOver={(e) => { e.currentTarget.style.color = '#60a5fa'; e.currentTarget.style.transform = 'translateX(5px)'; }} onMouseOut={(e) => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.transform = 'translateX(0)'; }}>
+                <span>🚑</span> Pusat Bantuan
               </Link>
             </div>
           </div>

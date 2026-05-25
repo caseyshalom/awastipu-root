@@ -84,31 +84,29 @@ class SimulateResponse(BaseModel):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# REPORT — /api/v1/report
+# EMERGENCY GUIDE — /api/v1/emergency
 # ════════════════════════════════════════════════════════════════════════════
 
-class ReportCreate(BaseModel):
-    phone_number: str | None = None
-    bank_account: str | None = None
-    scam_category: ScamCategory
-    description: str
-    evidence_url: str | None = None
-    reporter_alias: str | None = None
-
-class ReportResponse(BaseModel):
-    id: int
-    phone_number: str | None = None
-    bank_account: str | None = None
+class EmergencyRequest(BaseModel):
     scam_category: str
-    description: str
-    evidence_url: str | None = None
-    reporter_alias: str | None = None
-    risk_score: float = 25.0
-    report_count: int = 1
-    created_at: Any = None
+    lost_item: str | None = None
+    description: str | None = None
 
-    class Config:
-        from_attributes = True
+class EmergencyStep(BaseModel):
+    title: str
+    description: str
+    action_link: str | None = None
+
+class EmergencyContact(BaseModel):
+    name: str
+    phone: str
+    description: str | None = None
+
+class EmergencyResponse(BaseModel):
+    title: str
+    summary: str
+    steps: list[EmergencyStep] = []
+    contacts: list[EmergencyContact] = []
 
 
 # ════════════════════════════════════════════════════════════════════════════

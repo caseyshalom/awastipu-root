@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { path: '/',          label: 'Beranda',   icon: '🏠' },
   { path: '/analyzer',  label: 'Detektor',  icon: '🔍' },
   { path: '/simulator', label: 'Simulator', icon: '🎮' },
-  { path: '/report',    label: 'Laporan',   icon: '📋' },
+  { path: '/emergency', label: 'Pusat Bantuan', icon: '🚑' },
 ];
 
 export default function Navbar() {

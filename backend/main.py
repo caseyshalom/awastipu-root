@@ -11,7 +11,7 @@ import os
 
 from app.api.v1.analyze import router as analyze_router
 from app.api.v1.simulate import router as simulate_router
-from app.api.v1.reports import router as reports_router
+from app.api.v1.emergency import router as emergency_router
 from app.core.config import settings
 from app.core.database import init_db
 
@@ -39,7 +39,7 @@ app.add_middleware(
 # ── Router Registration ──
 app.include_router(analyze_router,  prefix="/api/v1/analyze",  tags=["Analyzer"])
 app.include_router(simulate_router, prefix="/api/v1/simulate", tags=["Simulator"])
-app.include_router(reports_router,  prefix="/api/v1/reports",  tags=["Reports"])
+app.include_router(emergency_router,  prefix="/api/v1/emergency",  tags=["Emergency Guide"])
 
 
 @app.get("/api/health", tags=["Health"])

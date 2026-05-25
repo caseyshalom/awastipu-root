@@ -19,10 +19,10 @@ const FEATURES = [
     color: '#f59e0b',
   },
   {
-    icon: '📋',
-    title: 'Database Laporan',
-    desc: 'Cek nomor telepon/rekening dan laporkan penipu ke database komunitas.',
-    link: '/report',
+    icon: '🚑',
+    title: 'Pusat Bantuan Darurat',
+    desc: 'Panduan langkah demi langkah jika Anda sudah terlanjur menjadi korban penipuan.',
+    link: '/emergency',
     color: '#ef4444',
   },
 ];
